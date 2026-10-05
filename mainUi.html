@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model 41 — Scientific Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel-bg: #23262b;
+    --panel-bg-alt: #2b2e34;
+    --panel-edge: #15171a;
+    --screen-bg: #12140f;
+    --screen-edge: #05060450;
+    --lcd-amber: #ffb400;
+    --lcd-amber-soft: #ffb40099;
+    --lcd-amber-dim: #7a5a12;
+    --key-face: #e7e2d6;
+    --key-face-hi: #f5f1e6;
+    --key-face-shadow: #a89f8b;
+    --key-sci: #3f4550;
+    --key-sci-hi: #4b525f;
+    --key-sci-shadow: #1c1f24;
+    --key-op: #c9682d;
+    --key-op-hi: #dd7a3b;
+    --key-op-shadow: #7d3f16;
+    --ink: #17181a;
+    --ink-light: #f2efe7;
+    --rivet: #101215;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #33363c 0%, #1a1c1f 55%, #0e0f11 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .device{
+    position: relative;
+    width: 380px;
+    max-width: 100%;
+    background: linear-gradient(160deg, var(--panel-bg-alt), var(--panel-bg) 60%);
+    border-radius: 22px;
+    padding: 22px 20px 26px;
+    box-shadow:
+      0 1px 0 #4a4d53 inset,
+      0 -1px 0 #000 inset,
+      0 30px 60px -20px #000000cc,
+      0 8px 20px -6px #00000080;
+    border: 1px solid var(--panel-edge);
+  }
+
+  /* corner rivets for the instrument-panel feel */
+  .rivet{
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #6b6f76, var(--rivet) 70%);
+    box-shadow: 0 1px 0 #55585e50;
+  }
+  .rivet.tl{ top: 12px; left: 12px; }
+  .rivet.tr{ top: 12px; right: 12px; }
+  .rivet.bl{ bottom: 12px; left: 12px; }
+  .rivet.br{ bottom: 12px; right: 12px; }
+
+  .plate{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 4px 14px;
+    color: #8b8f97;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .plate strong{
+    color: #c7cad0;
+    font-weight: 600;
+  }
+
+  /* ---------- Display ---------- */
+  .screen{
+    background: linear-gradient(180deg, var(--screen-bg), #0a0b08);
+    border-radius: 10px;
+    padding: 16px 16px 14px;
+    margin-bottom: 16px;
+    box-shadow:
+      inset 0 2px 6px #00000090,
+      inset 0 0 0 1px var(--screen-edge),
+      0 1px 0 #4a4d5330;
+    position: relative;
+    overflow: hidden;
+  }
+  .screen::after{
+    /* subtle scanline / glass sheen, purely decorative */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      #ffffff08 0px,
+      #ffffff08 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+  }
+
+  #display-expression{
+    min-height: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--lcd-amber-dim);
+    text-align: right;
+    letter-spacing: 0.03em;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  #display-main{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 34px;
+    font-weight: 500;
+    color: var(--lcd-amber);
+    text-shadow: 0 0 10px var(--lcd-amber-soft), 0 0 1px var(--lcd-amber-soft);
+    text-align: right;
+    line-height: 1.25;
+    margin-top: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  #display-mode{
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--lcd-amber-dim);
+  }
+
+  /* ---------- Keys, shared ---------- */
+  .keys{ display: grid; gap: 8px; }
+
+  button{
+    font-family: 'Inter', sans-serif;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible{
+    outline: 2px solid var(--lcd-amber);
+    outline-offset: 2px;
+  }
+
+  .key{
+    height: 46px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+  }
+  .key:active{
+    transform: translateY(2px);
+  }
+
+  /* scientific keys: muted steel */
+  .key--sci{
+    background: linear-gradient(180deg, var(--key-sci-hi), var(--key-sci));
+    color: var(--ink-light);
+    font-size: 13px;
+    box-shadow:
+      0 2px 0 var(--key-sci-shadow),
+      0 3px 4px #00000060;
+  }
+  .key--sci:active{
+    box-shadow: 0 0 0 var(--key-sci-shadow);
+  }
+
+  /* digit / utility keys: bone ivory */
+  .key--num{
+    background: linear-gradient(180deg, var(--key-face-hi), var(--key-face));
+    color: var(--ink);
+    box-shadow:
+      0 2px 0 var(--key-face-shadow),
+      0 3px 4px #00000050;
+  }
+  .key--num:active{
+    box-shadow: 0 0 0 var(--key-face-shadow);
+  }
+
+  /* operator keys: burnt-orange accent, the signature color */
+  .key--op{
+    background: linear-gradient(180deg, var(--key-op-hi), var(--key-op));
+    color: var(--ink-light);
+    font-size: 18px;
+    box-shadow:
+      0 2px 0 var(--key-op-shadow),
+      0 3px 4px #00000060;
+  }
+  .key--op:active{
+    box-shadow: 0 0 0 var(--key-op-shadow);
+  }
+
+  .key--equals{
+    background: linear-gradient(180deg, #ffcf6b, var(--lcd-amber));
+    color: #241a00;
+    font-size: 18px;
+    box-shadow:
+      0 2px 0 #8a5f00,
+      0 3px 4px #00000060;
+  }
+  .key--equals:active{
+    box-shadow: 0 0 0 #8a5f00;
+  }
+
+  /* ---------- Layout grids ---------- */
+  .sci-grid{
+    grid-template-columns: repeat(4, 1fr);
+    margin-bottom: 10px;
+  }
+
+  .main-grid{
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .span-2{ grid-column: span 2; }
+
+  @media (max-width: 380px){
+    .device{ padding: 18px 14px 20px; }
+    #display-main{ font-size: 28px; }
+    .key{ height: 42px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="device">
+  <span class="rivet tl"></span>
+  <span class="rivet tr"></span>
+  <span class="rivet bl"></span>
+  <span class="rivet br"></span>
+
+  <div class="plate">
+    <span><strong>Model 1</strong> — Scientific</span>
+    <span>Deg</span>
+  </div>
+
+  <!-- ============ DISPLAY ============ -->
+  <section class="screen" aria-label="calculator display">
+    <span id="display-mode">RAD</span>
+    <div id="display-expression"></div>
+    <div id="display-main">0</div>
+  </section>
+
+  <!-- ============ SCIENTIFIC KEYS ============ -->
+  <div class="keys sci-grid">
+    <button id="btn-pi" class="key key--sci">π</button>
+    <button id="btn-euler" class="key key--sci">e</button>
+    <button id="btn-sqrt" class="key key--sci">√x</button>
+    <button id="btn-cbrt" class="key key--sci">∛x</button>
+
+    <button id="btn-power" class="key key--sci">xʸ</button>
+    <button id="btn-factorial" class="key key--sci">x!</button>
+    <button id="btn-log" class="key key--sci">log</button>
+    <button id="btn-ln" class="key key--sci">ln</button>
+
+    <button id="btn-open-paren" class="key key--sci span-2">(</button>
+    <button id="btn-close-paren" class="key key--sci span-2">)</button>
+  </div>
+
+  <!-- ============ MAIN KEYPAD ============ -->
+  <div class="keys main-grid">
+    <button id="btn-clear" class="key key--sci">C</button>
+    <button id="btn-clear-entry" class="key key--sci">CE</button>
+    <button id="btn-backspace" class="key key--sci">⌫</button>
+    <button id="btn-divide" class="key key--op">÷</button>
+
+    <button id="btn-7" class="key key--num">7</button>
+    <button id="btn-8" class="key key--num">8</button>
+    <button id="btn-9" class="key key--num">9</button>
+    <button id="btn-multiply" class="key key--op">×</button>
+
+    <button id="btn-4" class="key key--num">4</button>
+    <button id="btn-5" class="key key--num">5</button>
+    <button id="btn-6" class="key key--num">6</button>
+    <button id="btn-subtract" class="key key--op">−</button>
+
+    <button id="btn-1" class="key key--num">1</button>
+    <button id="btn-2" class="key key--num">2</button>
+    <button id="btn-3" class="key key--num">3</button>
+    <button id="btn-add" class="key key--op">+</button>
+
+    <button id="btn-negate" class="key key--utility">±</button>
+    <button id="btn-0" class="key key--num">0</button>
+    <button id="btn-decimal" class="key key--num">.</button>
+    <button id="btn-equals" class="key key--equals">=</button>
+  </div>
+  <script src="./js/expression.js"></script>
+  <script src="./js/V1.js"></script>
+</main>
+
+</body>
+</html>
